@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ASHEN BLADE — Sunset Shrine Boss Duel</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Cinematic Letterbox Bars & Story UI -->
+  <div id="letterbox-top" class="letterbox"></div>
+  <div id="letterbox-bottom" class="letterbox">
+    <div id="cutscene-hud">
+      <div id="act-badge">ACT I — THE FALL OF ASHEN PEAK</div>
+      <div id="subtitle-jp">灰の峰の陥落</div>
+      <div id="subtitle-en">For three hundred years, the Vermilion Seal bound the Storm Dragon beneath Mount Kagu...</div>
+      <div id="cutscene-timeline-wrap">
+        <div id="cutscene-timeline-fill"></div>
+      </div>
+      <div id="cutscene-controls">
+        <span>[SPACE] Skip Cutscene</span>
+        <span id="cutscene-timer">00.0s / 15.0s</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen Flash Overlay -->
+  <div id="screen-flash"></div>
+
+  <!-- Top-Left Utility Bar -->
+  <div id="top-bar">
+    <button id="btn-replay-cutscene" class="ui-btn">🎬 [C] 15s Story Cutscene</button>
+    <button id="btn-change-mode" class="ui-btn">⚔️ Mode: <span id="current-mode-label">MEDIUM</span></button>
+    <div id="fps-hint">Click Arena to Lock Mouse Aim • [ESC] Unlock</div>
+  </div>
+
+  <!-- Title & Difficulty Selection Overlay -->
+  <div id="title-overlay" class="overlay hidden">
+    <div class="title-card">
+      <div class="jp-watermark">灰の刃</div>
+      <h1 class="main-title">ASHEN BLADE</h1>
+      <p class="subtitle-tag">TWILIGHT SHRINE DUEL — DIRECTOR'S CUT</p>
+
+      <div class="difficulty-section">
+        <div class="diff-heading">SELECT YOUR PATH OF HONOR</div>
+        <div class="diff-grid">
+          <button class="diff-card" data-mode="EASY">
+            <div class="diff-name">EASY</div>
+            <div class="diff-sub">Story & Cinematics</div>
+            <div class="diff-stats">150 HP • 0.6x Boss DMG • Wide Parry • 0.8x Score</div>
+          </button>
+          <button class="diff-card active" data-mode="MEDIUM">
+            <div class="diff-name">MEDIUM</div>
+            <div class="diff-sub">Way of the Ronin</div>
+            <div class="diff-stats">100 HP • 1.0x Boss DMG • Standard Parry • 1.0x Score</div>
+          </button>
+          <button class="diff-card" data-mode="HARD">
+            <div class="diff-name">HARD</div>
+            <div class="diff-sub">Demon of Tsushima</div>
+            <div class="diff-stats">85 HP • 1.45x Boss DMG • Fast Dragon • 1.5x Score</div>
+          </button>
+          <button class="diff-card hardcore" data-mode="HARDCORE">
+            <div class="diff-name">HARDCORE</div>
+            <div class="diff-sub">ASHEN SOULS (1 HP)</div>
+            <div class="diff-stats">1 MAX HP • No Heal • Fast Attacks • 3.0x Score (SSS Rank)</div>
+          </button>
+        </div>
+      </div>
+
+      <div class="controls-guide">
+        <span><b>WASD</b> Move</span>
+        <span><b>Mouse</b> Aim & Camera</span>
+        <span><b>L-Click</b> 3-Hit Katana</span>
+        <span><b>R-Click</b> Deflect Fireball</span>
+        <span><b>Space</b> Shadow Dash</span>
+        <span><b>1-4</b> Elemental Arts</span>
+      </div>
+
+      <div class="title-actions">
+        <button id="btn-start-duel" class="cta-btn">ENTER THE DUEL [ENTER]</button>
+        <button id="btn-watch-lore" class="secondary-btn">REWATCH 15s LORE CUTSCENE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Combat HUD -->
+  <div id="combat-hud" class="hidden">
+    <!-- Boss Bar -->
+    <div id="boss-hud">
+      <div class="boss-title-row">
+        <span id="boss-phase-badge">PHASE I — TWILIGHT AWAKENING</span>
+        <span id="boss-name">KAGU-RYU, ANCIENT STORM DRAGON</span>
+        <span id="boss-hp-text">1000 / 1000</span>
+      </div>
+      <div class="bar-frame boss-frame">
+        <div id="boss-hp-Ghost" class="bar-ghost"></div>
+        <div id="boss-hp-fill" class="bar-fill"></div>
+      </div>
+      <div id="boss-telegraph-banner" class="hidden">⚠️ INCOMING DRAGON ART — PREPARE TO PARRY OR DASH</div>
+    </div>
+
+    <!-- Center Dynamic Aim Reticle -->
+    <div id="reticle">
+      <div class="reticle-ring"></div>
+      <div class="reticle-dot"></div>
+      <div id="reticle-lock-label">LOCKED</div>
+    </div>
+
+    <!-- Right Honor Score & Combo -->
+    <div id="score-panel">
+      <div class="score-label">HONOR SCORE</div>
+      <div id="score-value">00000</div>
+      <div id="combo-badge">COMBO x1</div>
+      <div id="action-feed">ASHEN BLADE DRAWN</div>
+    </div>
+
+    <!-- Bottom Player Status & 4 Spells -->
+    <div id="player-hud">
+      <div class="vitals-col">
+        <div class="vital-row">
+          <span class="vital-label">SAMURAI HP</span>
+          <div class="bar-frame hp-frame">
+            <div id="player-hp-fill" class="bar-fill"></div>
+          </div>
+          <span id="player-hp-text">100/100</span>
+        </div>
+        <div class="vital-row">
+          <span class="vital-label">SPIRIT MANA</span>
+          <div class="bar-frame mana-frame">
+            <div id="player-mana-fill" class="bar-fill"></div>
+          </div>
+          <span id="player-mana-text">100/100</span>
+        </div>
+      </div>
+
+      <div class="spells-row">
+        <div class="spell-slot" id="spell-1">
+          <span class="spell-key">1</span>
+          <div class="spell-name">Crimson Slash</div>
+          <div class="spell-cost">20 MP</div>
+          <div class="cooldown-overlay" id="cd-1"></div>
+        </div>
+        <div class="spell-slot" id="spell-2">
+          <span class="spell-key">2</span>
+          <div class="spell-name">Azure Step</div>
+          <div class="spell-cost">30 MP</div>
+          <div class="cooldown-overlay" id="cd-2"></div>
+        </div>
+        <div class="spell-slot" id="spell-3">
+          <span class="spell-key">3</span>
+          <div class="spell-name">Jade Ward</div>
+          <div class="spell-cost">35 MP</div>
+          <div class="cooldown-overlay" id="cd-3"></div>
+        </div>
+        <div class="spell-slot" id="spell-4">
+          <span class="spell-key">4</span>
+          <div class="spell-name">Dragonfall</div>
+          <div class="spell-cost">50 MP</div>
+          <div class="cooldown-overlay" id="cd-4"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- End Screen Overlay (Win / Lose) -->
+  <div id="end-overlay" class="overlay hidden">
+    <div class="end-card" id="end-card-inner">
+      <div id="end-kanji">死</div>
+      <h2 id="end-title">FALLEN IN HONOR</h2>
+      <p id="end-subtitle">The storm consumes the shrine.</p>
+      <div class="end-stats">
+        <div>FINAL HONOR SCORE: <b id="end-score">0</b></div>
+        <div>DIFFICULTY MODE: <b id="end-mode">MEDIUM</b></div>
+        <div>RANK ACHIEVED: <span id="end-rank" class="rank-badge">A</span></div>
+      </div>
+      <div class="title-actions">
+        <button id="btn-retry" class="cta-btn">RETRY DUEL [ENTER]</button>
+        <button id="btn-end-mode" class="secondary-btn">CHANGE DIFFICULTY</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>
